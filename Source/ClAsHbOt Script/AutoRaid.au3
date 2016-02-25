@@ -261,11 +261,45 @@ Func CheckForRaidableBase(Const $townHall, Const $gold, Const $elix, Const $dark
 	  DebugWrite("CheckForRaidableBase() No match (town hall=" & $townHall & ")")
 	  Return False
    EndIf
+   
+   ; allow for flexable minimum raiding resource requirements
+   ; darkMultiplier and scoreFactor could be in the the global ini file
+   ;
+   ; scoreFactor set to high value (100000) retains previous functionality
+   ; scoreFactor set to low value (4) allows elix way above min. to offset missed gold min. and visa versa
+   Local $darkMultiplier=100, $scoreFactor=50, $deltaGold=0, $deltaDark=0, $deltaElix=0 
+
+   If ($dark-$GUIDark) < 0 Then
+        $deltaDark = ($dark-$GUIDark) * $scoreFactor * $darkMultiplier
+   Else
+        $deltaDark = ($dark-$GUIDark) * $darkMultiplier  
+   EndIf
+
+   ; If there is a zero minimum on dark elix, do not make it a factor in condition to raid 
+   If $GUIDark=0 Then
+	$deltaDark=0
+   EndIf
 
    ; Adjust available loot to exclude storages?
    If $GUIIgnoreStorages And ($myTHLevel-$townHall<2 Or $myTHLevel>=11) Then ; "ignore storages" only valid if target TH<2 levels from my TH level. or my TH level>=11
 	  ; Check unadjusted first to possibly skip adjustment scan
-	  If $gold<$GUIGold Or $elix<$GUIElix Or $dark<$GUIDark Then
+	  
+          ; if available gold is below minimum apply a negative multiplier
+          If ($gold-$GUIGold) < 0 Then
+              $deltaGold = ($gold-$GUIGold) * $scoreFactor
+          Else
+              $deltaGold = ($gold-$GUIGold)  
+          EndIf
+
+          ; if available elixir is below minimum apply a negative multiplier
+          If ($elix-$GUIElix) < 0 Then
+              $deltaElix = ($elix-$GUIElix) * $scoreFactor
+          Else
+              $deltaElix = ($elix-$GUIElix)  
+          EndIf
+
+          ; Unadjusted loot match?
+          If ($deltaGold + $deltaElix + $deltaDark) < 0 Then
 		 DebugWrite("CheckForRaidableBase() No match (loot) gold=" & $gold & " elix=" & $elix & " dark=" & $dark)
 		 Return False
 	  EndIf
@@ -273,7 +307,24 @@ Func CheckForRaidableBase(Const $townHall, Const $gold, Const $elix, Const $dark
 	  Local $adjGold=$gold, $adjElix=$elix
 	  AdjustLootForStorages($townHall, $gold, $elix, $adjGold, $adjElix)
 
-	  If $adjGold<$GUIGold Or $adjElix<$GUIElix Or $dark<$GUIDark Then
+          ; if available gold is below minimum apply a negative multiplier to adjusted gold
+          If ($adjGold-$GUIGold) < 0 Then
+		$deltaGold = ($adjGold-$GUIGold) * $scoreFactor
+	  Else
+		$deltaGold = ($adjGold-$GUIGold)  
+	  EndIf
+
+          ; if available elixir is below minimum apply a negative multiplier to adjusted elixir
+	  If ($adjElix-$GUIElix) < 0 Then
+		$deltaElix = ($adjElix-$GUIElix) * $scoreFactor
+	  Else
+		$deltaElix = ($adjElix-$GUIElix)  
+	  EndIf
+
+	  ; (previous condition) If $adjGold<$GUIGold Or $adjElix<$GUIElix Or $dark<$GUIDark Then
+	  ; if scoreFactor is set high (1000000) then below condition is equal to above condition
+
+	  If ($deltaGold + $deltaElix + $deltaDark) < 0 Then
 		 DebugWrite("CheckForRaidableBase() No match (adj loot) (Adj: " & $adjGold & " / " & $adjElix & ")" )
 		 Return False
 	  Else
@@ -282,8 +333,22 @@ Func CheckForRaidableBase(Const $townHall, Const $gold, Const $elix, Const $dark
 	  EndIf
    EndIf
 
+   ; if available gold is below minimum apply a negative multiplier
+   If ($gold-$GUIGold) < 0 Then
+       $deltaGold = ($gold-$GUIGold) * $scoreFactor
+   Else
+       $deltaGold = ($gold-$GUIGold)  
+   EndIf
+
+   ; if available elixir is below minimum apply a negative multiplier
+   If ($elix-$GUIElix) < 0 Then
+       $deltaElix = ($elix-$GUIElix) * $scoreFactor
+   Else
+       $deltaElix = ($elix-$GUIElix)  
+   EndIf
+
    ; Unadjusted loot match?
-   If $gold<$GUIGold Or $elix<$GUIElix Or $dark<$GUIDark Then
+   If ($deltaGold + $deltaElix + $deltaDark) < 0 Then
 	  DebugWrite("CheckForRaidableBase() No match (loot)")
 	  Return False
    Else
